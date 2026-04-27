@@ -1,9 +1,31 @@
 const STORAGE_KEY = "pikumin-checker-state-v1";
 const TOKEN_KEY = "pikumin-checker-token";
+const USER_KEY = "pikumin-checker-user";
 
 // 認証管理
 let currentToken = localStorage.getItem(TOKEN_KEY);
-let currentUser = null;
+let currentUser = (() => {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+})();
+
+function persistAuthSession(token, user) {
+  currentToken = token;
+  currentUser = user;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+function clearAuthSession() {
+  currentToken = null;
+  currentUser = null;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
 
 async function showApp() {
   document.getElementById("authContainer").style.display = "none";
@@ -13,9 +35,7 @@ async function showApp() {
 async function showAuth() {
   document.getElementById("authContainer").style.display = "flex";
   document.getElementById("appContainer").style.display = "none";
-  currentToken = null;
-  currentUser = null;
-  localStorage.removeItem(TOKEN_KEY);
+  clearAuthSession();
 }
 
 function getAuthHeader() {
@@ -44,17 +64,13 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
     }
 
     const data = await res.json();
-    currentToken = data.token;
-    currentUser = data.user;
-    localStorage.setItem(TOKEN_KEY, currentToken);
+    persistAuthSession(data.token, data.user);
     errorEl.style.display = "none";
 
     document.getElementById("loginForm").reset();
-    showApp();
-    loadState().then((state) => {
-      checked = state;
-      render();
-    });
+    await showApp();
+    checked = await loadState();
+    render();
   } catch (err) {
     errorEl.textContent = "通信エラー";
     errorEl.style.display = "block";
@@ -94,14 +110,10 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
 
     if (loginRes.ok) {
       const loginData = await loginRes.json();
-      currentToken = loginData.token;
-      currentUser = loginData.user;
-      localStorage.setItem(TOKEN_KEY, currentToken);
-      showApp();
-      loadState().then((state) => {
-        checked = state;
-        render();
-      });
+      persistAuthSession(loginData.token, loginData.user);
+      await showApp();
+      checked = await loadState();
+      render();
     }
   } catch (err) {
     errorEl.textContent = "通信エラー";
@@ -234,6 +246,9 @@ const closeItemDialogBtn = document.getElementById("closeItemDialogBtn");
 const itemDialogTitle = document.getElementById("itemDialogTitle");
 const itemDialogNote = document.getElementById("itemDialogNote");
 const itemDialogCheckboxes = document.getElementById("itemDialogCheckboxes");
+const resetConfirmDialog = document.getElementById("resetConfirmDialog");
+const cancelResetBtn = document.getElementById("cancelResetBtn");
+const confirmResetBtn = document.getElementById("confirmResetBtn");
 
 let activeCategory = null;
 
@@ -359,6 +374,56 @@ function closeItemDialog() {
   }
 }
 
+function confirmReset() {
+  if (!resetConfirmDialog) {
+    return Promise.resolve(window.confirm("チェック状態をリセットします。よろしいですか？"));
+  }
+
+  return new Promise((resolve) => {
+    const finish = (result) => {
+      cancelResetBtn?.removeEventListener("click", onCancel);
+      confirmResetBtn?.removeEventListener("click", onConfirm);
+      resetConfirmDialog.removeEventListener("cancel", onCancelEvent);
+      resetConfirmDialog.removeEventListener("click", onOutsideClick);
+      if (typeof resetConfirmDialog.close === "function") {
+        resetConfirmDialog.close();
+      } else {
+        resetConfirmDialog.removeAttribute("open");
+      }
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onCancelEvent = (event) => {
+      event.preventDefault();
+      finish(false);
+    };
+    const onOutsideClick = (event) => {
+      const rect = resetConfirmDialog.getBoundingClientRect();
+      const isOutside =
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom;
+      if (isOutside) {
+        finish(false);
+      }
+    };
+
+    cancelResetBtn?.addEventListener("click", onCancel);
+    confirmResetBtn?.addEventListener("click", onConfirm);
+    resetConfirmDialog.addEventListener("cancel", onCancelEvent);
+    resetConfirmDialog.addEventListener("click", onOutsideClick);
+
+    if (typeof resetConfirmDialog.showModal === "function") {
+      resetConfirmDialog.showModal();
+    } else {
+      resetConfirmDialog.setAttribute("open", "");
+    }
+  });
+}
+
 function getOptionLabel(item, category) {
   if (category.label === "ひらがなシール" || category.label === "カタカナシール") {
     return item.name;
@@ -367,6 +432,35 @@ function getOptionLabel(item, category) {
     return `${item.color} ${item.name}`;
   }
   return item.name;
+}
+
+async function initializeAuth() {
+  if (!currentToken) {
+    checked = {};
+    render();
+    await showAuth();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/me", {
+      headers: getAuthHeader()
+    });
+
+    if (!response.ok) {
+      throw new Error("invalid session");
+    }
+
+    currentUser = await response.json();
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    await showApp();
+    checked = await loadState();
+    render();
+  } catch {
+    checked = {};
+    render();
+    await showAuth();
+  }
 }
 
 function renderCategoryDialog(category) {
@@ -501,6 +595,11 @@ checkAllBtn.addEventListener("click", () => {
 });
 
 resetBtn.addEventListener("click", async () => {
+  const shouldReset = await confirmReset();
+  if (!shouldReset) {
+    return;
+  }
+
   checked = {};
   localStorage.removeItem(STORAGE_KEY);
   await saveState();
@@ -526,14 +625,4 @@ itemDialog.addEventListener("cancel", (event) => {
   closeItemDialog();
 });
 
-loadState().then((state) => {
-  checked = state;
-  render();
-});
-
-// 初期化：ログイン状態をチェック
-if (currentToken) {
-  showApp();
-} else {
-  showAuth();
-}
+initializeAuth();

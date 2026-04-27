@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PIKUMIN CHECKER</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -90,7 +91,7 @@
 
         <div class="actions">
           <button id="checkAllBtn" type="button">表示中をすべてチェック</button>
-          <button id="resetBtn" type="button" class="danger">初期化</button>
+          <button id="resetBtn" type="button" class="danger">リセット</button>
         </div>
       </section>
 
@@ -127,6 +128,17 @@
       </div>
       <p id="itemDialogNote" class="dialog-note">この項目のチェックを変更できます。</p>
       <div id="itemDialogCheckboxes" class="seedling-checkboxes"></div>
+    </dialog>
+
+    <dialog id="resetConfirmDialog" class="seedling-dialog reset-confirm-dialog">
+      <div class="dialog-header">
+        <h3>リセット確認</h3>
+      </div>
+      <p class="dialog-note">チェック状態をリセットします。よろしいですか？</p>
+      <div class="confirm-actions">
+        <button id="cancelResetBtn" type="button" class="secondary">キャンセル</button>
+        <button id="confirmResetBtn" type="button" class="danger">リセットする</button>
+      </div>
     </dialog>
     </div><!-- appContainer end -->
 
