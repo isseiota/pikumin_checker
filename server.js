@@ -21,12 +21,19 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname)));
 
 async function initDB() {
+  try {
+    // 既存テーブルをドロップ（email カラム削除のため）
+    await sql`DROP TABLE IF EXISTS user_state CASCADE`;
+    await sql`DROP TABLE IF EXISTS users CASCADE`;
+  } catch (err) {
+    console.log("Drop tables (if existed):", err.message);
+  }
+
   // ユーザーテーブル
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       username VARCHAR(50) UNIQUE NOT NULL,
-      email VARCHAR(100) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
@@ -73,9 +80,9 @@ const authenticateToken = (req, res, next) => {
 // ユーザー登録
 app.post("/api/register", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !password) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -84,16 +91,16 @@ app.post("/api/register", async (req, res) => {
 
     // ユーザー作成
     const result = await sql`
-      INSERT INTO users (username, email, password_hash)
-      VALUES (${username}, ${email}, ${passwordHash})
-      RETURNING id, username, email
+      INSERT INTO users (username, password_hash)
+      VALUES (${username}, ${passwordHash})
+      RETURNING id, username
     `;
 
     res.json({ ok: true, user: result[0] });
   } catch (err) {
     console.error("POST /api/register error:", err);
     if (err.message && err.message.includes("unique")) {
-      return res.status(400).json({ error: "Username or email already exists" });
+      return res.status(400).json({ error: "Username already exists" });
     }
     res.status(500).json({ error: "Registration failed" });
   }
@@ -137,7 +144,7 @@ app.post("/api/login", async (req, res) => {
 // 現在のユーザー情報
 app.get("/api/me", authenticateToken, async (req, res) => {
   try {
-    const users = await sql`SELECT id, username, email FROM users WHERE id = ${req.user.id}`;
+    const users = await sql`SELECT id, username FROM users WHERE id = ${req.user.id}`;
     if (users.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
