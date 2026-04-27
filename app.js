@@ -239,6 +239,7 @@ const totalCountEl = document.getElementById("totalCount");
 const completionRateEl = document.getElementById("completionRate");
 const progressBarEl = document.getElementById("progressBar");
 const emptyStateEl = document.getElementById("emptyState");
+const logoutBtn = document.getElementById("logoutBtn");
 const checkAllBtn = document.getElementById("checkAllBtn");
 const resetBtn = document.getElementById("resetBtn");
 const itemDialog = document.getElementById("itemDialog");
@@ -584,6 +585,12 @@ function updateStats() {
 
 searchInput.addEventListener("input", render);
 colorFilter.addEventListener("change", render);
+
+logoutBtn?.addEventListener("click", async () => {
+  checked = {};
+  localStorage.removeItem(STORAGE_KEY);
+  await showAuth();
+});
 
 checkAllBtn.addEventListener("click", () => {
   for (const item of getFilteredItems()) {

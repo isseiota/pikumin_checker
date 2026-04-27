@@ -60,6 +60,13 @@ body {
   animation: fade-in-up 440ms ease;
 }
 
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .eyebrow {
   margin: 0;
   color: var(--muted);
@@ -510,6 +517,11 @@ h2 {
 @media (max-width: 720px) {
   .controls {
     grid-template-columns: 1fr;
+  }
+
+  .hero-top {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .stats {
