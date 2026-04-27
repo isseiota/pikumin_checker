@@ -199,25 +199,17 @@ const BASE_TYPE_NAMES = [
   ...KATAKANA_CHARS.map((char) => `カタカナシール（${char}）`),
   ...UPPERCASE_ALPHA_CHARS.map((char) => `アルファベットシール大文字（${char}）`),
   ...LOWERCASE_ALPHA_CHARS.map((char) => `アルファベットシール小文字（${char}）`),
-  "大阪駅",
-  "梅田駅",
-  "難波駅",
-  "心斎橋駅",
-  "天王寺駅",
-  "京橋駅",
-  "鶴橋駅",
-  "阿倍野橋駅",
-  "淀屋橋駅",
-  "本町駅",
-  "岸里駅",
-  "北新地駅",
-  "西梅田駅",
-  "四ツ橋駅",
-  "北加賀屋駅",
-  "大正駅",
-  "我孫子駅",
-  "昭和町駅",
-  "天下茶屋駅",
+  "駅（岸里）",
+  "駅（難波）",
+  "駅（本町）",
+  "駅（西梅田）",
+  "駅（肥後橋）",
+  "駅（四ツ橋）",
+  "駅（北加賀屋）",
+  "駅（玉出）",
+  "駅（大国町）",
+  "駅（住之江公園）",
+  "駅（花園町）",
   "森",
   "水辺",
   "レストラン",
@@ -360,6 +352,9 @@ function getGroupName(item) {
   }
   if (item.name.startsWith("神社仏閣（")) {
     return "神社仏閣";
+  }
+  if (item.name.startsWith("駅（")) {
+    return "駅";
   }
   return "その他";
 }
@@ -547,10 +542,11 @@ function render() {
     "ひらがなシール": categories.filter((cat) => cat.group === "ひらがなシール"),
     "カタカナシール": categories.filter((cat) => cat.group === "カタカナシール"),
     "アルファベットシール大文字": categories.filter((cat) => cat.group === "アルファベットシール大文字"),
-    "アルファベットシール小文字": categories.filter((cat) => cat.group === "アルファベットシール小文字")
+    "アルファベットシール小文字": categories.filter((cat) => cat.group === "アルファベットシール小文字"),
+    "駅": categories.filter((cat) => cat.group === "駅")
   };
 
-  const groupOrder = ["その他", "神社仏閣", "数字シール", "漢字シール", "ひらがなシール", "カタカナシール", "アルファベットシール大文字", "アルファベットシール小文字"];
+  const groupOrder = ["その他", "神社仏閣", "数字シール", "漢字シール", "ひらがなシール", "カタカナシール", "アルファベットシール大文字", "アルファベットシール小文字", "駅"];
 
   for (const groupName of groupOrder) {
     const categoryList = grouped[groupName];
