@@ -38,6 +38,20 @@ async function showAuth() {
   clearAuthSession();
 }
 
+function ensureVisibleScreenFallback() {
+  const authContainer = document.getElementById("authContainer");
+  const appContainer = document.getElementById("appContainer");
+  if (!authContainer || !appContainer) return;
+
+  const authHidden = getComputedStyle(authContainer).display === "none";
+  const appHidden = getComputedStyle(appContainer).display === "none";
+
+  // 何らかの初期化失敗で両画面が隠れた場合、最低限ログイン画面を表示する
+  if (authHidden && appHidden) {
+    authContainer.style.display = "flex";
+  }
+}
+
 function getAuthHeader() {
   return currentToken ? { "Authorization": `Bearer ${currentToken}` } : {};
 }
@@ -633,3 +647,7 @@ itemDialog.addEventListener("cancel", (event) => {
 });
 
 initializeAuth();
+
+window.addEventListener("error", ensureVisibleScreenFallback);
+window.addEventListener("unhandledrejection", ensureVisibleScreenFallback);
+setTimeout(ensureVisibleScreenFallback, 1200);
