@@ -1,4 +1,127 @@
 const STORAGE_KEY = "pikumin-checker-state-v1";
+const TOKEN_KEY = "pikumin-checker-token";
+
+// 認証管理
+let currentToken = localStorage.getItem(TOKEN_KEY);
+let currentUser = null;
+
+async function showApp() {
+  document.getElementById("authContainer").style.display = "none";
+  document.getElementById("appContainer").style.display = "block";
+}
+
+async function showAuth() {
+  document.getElementById("authContainer").style.display = "flex";
+  document.getElementById("appContainer").style.display = "none";
+  currentToken = null;
+  currentUser = null;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+function getAuthHeader() {
+  return currentToken ? { "Authorization": `Bearer ${currentToken}` } : {};
+}
+
+// ログイン処理
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("loginUsername").value;
+  const password = document.getElementById("loginPassword").value;
+  const errorEl = document.getElementById("authError");
+
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      errorEl.textContent = err.error || "ログイン失敗";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    const data = await res.json();
+    currentToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem(TOKEN_KEY, currentToken);
+    errorEl.style.display = "none";
+
+    document.getElementById("loginForm").reset();
+    showApp();
+    loadState().then((state) => {
+      checked = state;
+      render();
+    });
+  } catch (err) {
+    errorEl.textContent = "通信エラー";
+    errorEl.style.display = "block";
+  }
+});
+
+// 登録処理
+document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("registerUsername").value;
+  const email = document.getElementById("registerEmail").value;
+  const password = document.getElementById("registerPassword").value;
+  const errorEl = document.getElementById("authError");
+
+  try {
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      errorEl.textContent = err.error || "登録失敗";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    errorEl.style.display = "none";
+    document.getElementById("registerForm").reset();
+    
+    // 自動ログイン
+    const loginRes = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (loginRes.ok) {
+      const loginData = await loginRes.json();
+      currentToken = loginData.token;
+      currentUser = loginData.user;
+      localStorage.setItem(TOKEN_KEY, currentToken);
+      showApp();
+      loadState().then((state) => {
+        checked = state;
+        render();
+      });
+    }
+  } catch (err) {
+    errorEl.textContent = "通信エラー";
+    errorEl.style.display = "block";
+  }
+});
+
+// フォーム切り替え
+document.getElementById("toggleToRegister")?.addEventListener("click", () => {
+  document.getElementById("loginSection").style.display = "none";
+  document.getElementById("registerSection").style.display = "block";
+  document.getElementById("authError").style.display = "none";
+});
+
+document.getElementById("toggleToLogin")?.addEventListener("click", () => {
+  document.getElementById("loginSection").style.display = "block";
+  document.getElementById("registerSection").style.display = "none";
+  document.getElementById("authError").style.display = "none";
+});
 
 const HIRAGANA_CHARS = [
   "あ", "い", "う", "え", "お",
@@ -118,13 +241,16 @@ let activeCategory = null;
 let checked = {};
 
 async function loadState() {
+  if (!currentToken) return {};
+
   try {
-    const res = await fetch("/api/state");
+    const res = await fetch("/api/state", {
+      headers: getAuthHeader()
+    });
     if (!res.ok) throw new Error("fetch failed");
     const data = await res.json();
     return typeof data === "object" && data !== null && !Array.isArray(data) ? data : {};
   } catch {
-    // サーバーへの接続失敗時は localStorage をフォールバックに使う
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return {};
@@ -137,16 +263,21 @@ async function loadState() {
 }
 
 async function saveState() {
-  // リアルタイムのキャッシュとして localStorage に保存
   localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+  
+  if (!currentToken) return;
+
   try {
     await fetch("/api/state", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader()
+      },
       body: JSON.stringify(checked)
     });
   } catch {
-    // ネットワークエラーはサイレントにスキップ（localStorage に保存済み）
+    // ネットワークエラーはサイレント
   }
 }
 
@@ -400,3 +531,10 @@ loadState().then((state) => {
   checked = state;
   render();
 });
+
+// 初期化：ログイン状態をチェック
+if (currentToken) {
+  showApp();
+} else {
+  showAuth();
+}

@@ -7,10 +7,65 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="bg-shape bg-shape-a"></div>
-    <div class="bg-shape bg-shape-b"></div>
+    <!-- 認証画面 -->
+    <div id="authContainer" class="auth-container">
+      <div class="auth-box">
+        <h1>PIKUMIN CHECKER</h1>
+        
+        <!-- ログインフォーム -->
+        <div id="loginSection" class="auth-section">
+          <h2>ログイン</h2>
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="loginUsername">ユーザー名</label>
+              <input id="loginUsername" type="text" placeholder="ユーザー名" required />
+            </div>
+            <div class="form-group">
+              <label for="loginPassword">パスワード</label>
+              <input id="loginPassword" type="password" placeholder="パスワード" required />
+            </div>
+            <button type="submit" class="auth-button">ログイン</button>
+          </form>
+          <p class="auth-toggle">
+            まだアカウントがない場合は
+            <button type="button" id="toggleToRegister" class="link-button">登録</button>
+          </p>
+        </div>
 
-    <main class="app-shell">
+        <!-- 登録フォーム -->
+        <div id="registerSection" class="auth-section" style="display: none;">
+          <h2>新規登録</h2>
+          <form id="registerForm">
+            <div class="form-group">
+              <label for="registerUsername">ユーザー名</label>
+              <input id="registerUsername" type="text" placeholder="ユーザー名" required />
+            </div>
+            <div class="form-group">
+              <label for="registerEmail">メール</label>
+              <input id="registerEmail" type="email" placeholder="メール" required />
+            </div>
+            <div class="form-group">
+              <label for="registerPassword">パスワード</label>
+              <input id="registerPassword" type="password" placeholder="パスワード" required />
+            </div>
+            <button type="submit" class="auth-button">登録</button>
+          </form>
+          <p class="auth-toggle">
+            既にアカウントをお持ちの場合は
+            <button type="button" id="toggleToLogin" class="link-button">ログイン</button>
+          </p>
+        </div>
+
+        <div id="authError" class="error-message" style="display: none;"></div>
+      </div>
+    </div>
+
+    <!-- アプリメイン画面 -->
+    <div id="appContainer" style="display: none;">
+      <div class="bg-shape bg-shape-a"></div>
+      <div class="bg-shape bg-shape-b"></div>
+
+      <main class="app-shell">
       <header class="hero">
         <p class="eyebrow">Pikmin Bloom Collection</p>
         <h1>PIKUMIN CHECKER</h1>
@@ -77,6 +132,7 @@
       <p id="itemDialogNote" class="dialog-note">この項目のチェックを変更できます。</p>
       <div id="itemDialogCheckboxes" class="seedling-checkboxes"></div>
     </dialog>
+    </div><!-- appContainer end -->
 
     <script src="joyo-kanji.js"></script>
     <script src="app.js"></script>
