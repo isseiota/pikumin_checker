@@ -21,14 +21,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname)));
 
 async function initDB() {
-  try {
-    // 既存テーブルをドロップ（email カラム削除のため）
-    await sql`DROP TABLE IF EXISTS user_state CASCADE`;
-    await sql`DROP TABLE IF EXISTS users CASCADE`;
-  } catch (err) {
-    console.log("Drop tables (if existed):", err.message);
-  }
-
   // ユーザーテーブル
   await sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -49,6 +41,22 @@ async function initDB() {
     )
   `;
 
+  // 現行のチェック状態: 1行1項目の boolean 管理
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_check_states (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_id VARCHAR(100) NOT NULL,
+      is_checked BOOLEAN NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      PRIMARY KEY (user_id, item_id)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_user_check_states_user_id
+    ON user_check_states (user_id)
+  `;
+
   // 互換性のため古いテーブルにもアクセス可能にする（必要に応じて）
   await sql`
     CREATE TABLE IF NOT EXISTS checker_state (
@@ -56,6 +64,111 @@ async function initDB() {
       state JSONB NOT NULL,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
+  `;
+}
+
+function buildStateObject(rows) {
+  const state = {};
+  for (const row of rows) {
+    state[row.item_id] = Boolean(row.is_checked);
+  }
+  return state;
+}
+
+async function migrateLegacyUserState(userId) {
+  const legacyRows = await sql`
+    SELECT state
+    FROM user_state
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `;
+
+  if (legacyRows.length === 0) {
+    return false;
+  }
+
+  await sql`
+    WITH legacy AS (
+      SELECT state
+      FROM user_state
+      WHERE user_id = ${userId}
+      LIMIT 1
+    ),
+    incoming AS (
+      SELECT
+        key AS item_id,
+        CASE
+          WHEN lower(value) = 'true' THEN true
+          WHEN lower(value) = 'false' THEN false
+          ELSE false
+        END AS is_checked
+      FROM legacy, jsonb_each_text(legacy.state)
+    )
+    INSERT INTO user_check_states (user_id, item_id, is_checked, updated_at)
+    SELECT ${userId}, item_id, is_checked, NOW()
+    FROM incoming
+    ON CONFLICT (user_id, item_id)
+    DO UPDATE SET
+      is_checked = EXCLUDED.is_checked,
+      updated_at = NOW()
+  `;
+
+  return true;
+}
+
+async function loadUserState(userId) {
+  let rows = await sql`
+    SELECT item_id, is_checked
+    FROM user_check_states
+    WHERE user_id = ${userId}
+  `;
+
+  if (rows.length === 0) {
+    const migrated = await migrateLegacyUserState(userId);
+    if (migrated) {
+      rows = await sql`
+        SELECT item_id, is_checked
+        FROM user_check_states
+        WHERE user_id = ${userId}
+      `;
+    }
+  }
+
+  return buildStateObject(rows);
+}
+
+async function saveUserState(userId, state) {
+  const normalizedState = Object.fromEntries(
+    Object.entries(state).filter(([, value]) => typeof value === "boolean")
+  );
+  const stateJson = JSON.stringify(normalizedState);
+
+  await sql`
+    WITH incoming AS (
+      SELECT
+        key AS item_id,
+        CASE
+          WHEN lower(value) = 'true' THEN true
+          WHEN lower(value) = 'false' THEN false
+          ELSE false
+        END AS is_checked
+      FROM jsonb_each_text(${stateJson}::jsonb)
+    ),
+    upserted AS (
+      INSERT INTO user_check_states (user_id, item_id, is_checked, updated_at)
+      SELECT ${userId}, item_id, is_checked, NOW()
+      FROM incoming
+      ON CONFLICT (user_id, item_id)
+      DO UPDATE SET
+        is_checked = EXCLUDED.is_checked,
+        updated_at = NOW()
+      RETURNING item_id
+    )
+    DELETE FROM user_check_states ucs
+    WHERE ucs.user_id = ${userId}
+      AND NOT EXISTS (
+        SELECT 1 FROM incoming WHERE incoming.item_id = ucs.item_id
+      )
   `;
 }
 
@@ -158,12 +271,8 @@ app.get("/api/me", authenticateToken, async (req, res) => {
 // ユーザーの状態取得（認証必須）
 app.get("/api/state", authenticateToken, async (req, res) => {
   try {
-    const rows = await sql`
-      SELECT state FROM user_state 
-      WHERE user_id = ${req.user.id}
-      LIMIT 1
-    `;
-    res.json(rows.length > 0 ? rows[0].state : {});
+    const state = await loadUserState(req.user.id);
+    res.json(state);
   } catch (err) {
     console.error("GET /api/state error:", err);
     res.status(500).json({ error: "DB error" });
@@ -178,23 +287,7 @@ app.post("/api/state", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Invalid state" });
     }
 
-    // upsert: 既存なら更新、なければ作成
-    const existing = await sql`
-      SELECT id FROM user_state WHERE user_id = ${req.user.id}
-    `;
-
-    if (existing.length > 0) {
-      await sql`
-        UPDATE user_state 
-        SET state = ${JSON.stringify(state)}, updated_at = NOW()
-        WHERE user_id = ${req.user.id}
-      `;
-    } else {
-      await sql`
-        INSERT INTO user_state (user_id, state, updated_at)
-        VALUES (${req.user.id}, ${JSON.stringify(state)}, NOW())
-      `;
-    }
+    await saveUserState(req.user.id, state);
 
     res.json({ ok: true });
   } catch (err) {
