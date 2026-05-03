@@ -239,6 +239,34 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.sub-group {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffcf6;
+  overflow: clip;
+}
+
+.sub-group > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff4e0;
+}
+
+.sub-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sub-group > .group-content {
+  padding: 8px;
+}
+
 .pikmin-item {
   display: flex;
   justify-content: space-between;

@@ -199,17 +199,99 @@ const BASE_TYPE_NAMES = [
   ...KATAKANA_CHARS.map((char) => `カタカナシール（${char}）`),
   ...UPPERCASE_ALPHA_CHARS.map((char) => `アルファベットシール大文字（${char}）`),
   ...LOWERCASE_ALPHA_CHARS.map((char) => `アルファベットシール小文字（${char}）`),
-  "駅（岸里）",
-  "駅（難波）",
-  "駅（本町）",
-  "駅（西梅田）",
-  "駅（肥後橋）",
-  "駅（四ツ橋）",
-  "駅（北加賀屋）",
-  "駅（玉出）",
-  "駅（大国町）",
-  "駅（住之江公園）",
-  "駅（花園町）",
+  "四つ橋線（岸里）",
+  "四つ橋線（難波）",
+  "四つ橋線（本町）",
+  "四つ橋線（西梅田）",
+  "四つ橋線（肥後橋）",
+  "四つ橋線（四ツ橋）",
+  "四つ橋線（北加賀屋）",
+  "四つ橋線（玉出）",
+  "四つ橋線（大国町）",
+  "四つ橋線（住之江公園）",
+  "四つ橋線（花園町）",
+  "御堂筋線（江坂）",
+  "御堂筋線（東三国）",
+  "御堂筋線（新大阪）",
+  "御堂筋線（西中島南方）",
+  "御堂筋線（中津）",
+  "御堂筋線（梅田）",
+  "御堂筋線（淀屋橋）",
+  "御堂筋線（本町）",
+  "御堂筋線（心斎橋）",
+  "御堂筋線（なんば）",
+  "御堂筋線（大国町）",
+  "御堂筋線（動物園前）",
+  "御堂筋線（天王寺）",
+  "御堂筋線（昭和町）",
+  "御堂筋線（西田辺）",
+  "御堂筋線（長居）",
+  "御堂筋線（あびこ）",
+  "御堂筋線（北花田）",
+  "御堂筋線（新金岡）",
+  "御堂筋線（なかもず）",
+  "北大阪急行（箕面萱野）",
+  "北大阪急行（箕面船場阪大前）",
+  "北大阪急行（千里中央）",
+  "北大阪急行（桃山台）",
+  "北大阪急行（緑地公園）",
+  "北大阪急行（江坂）",
+  "中央線（夢洲）",
+  "中央線（コスモスクエア）",
+  "中央線（大阪港）",
+  "中央線（朝潮橋）",
+  "中央線（弁天町）",
+  "中央線（九条）",
+  "中央線（阿波座）",
+  "中央線（本町）",
+  "中央線（堫筋本町）",
+  "中央線（谷町四丁目）",
+  "中央線（森ノ宮）",
+  "中央線（緑橋）",
+  "中央線（深江橋）",
+  "中央線（高井田）",
+  "中央線（長田）",
+  "JR京都線（京都）",
+  "JR京都線（西大路）",
+  "JR京都線（桂川）",
+  "JR京都線（向日町）",
+  "JR京都線（長岡京）",
+  "JR京都線（山崎）",
+  "JR京都線（島本）",
+  "JR京都線（高槻）",
+  "JR京都線（摂津富田）",
+  "JR京都線（ＪＲ総持寺）",
+  "JR京都線（茨木）",
+  "JR京都線（千里丘）",
+  "JR京都線（岸辺）",
+  "JR京都線（吹田）",
+  "JR京都線（東淀川）",
+  "JR京都線（新大阪）",
+  "JR京都線（大阪）",
+  "橋（天保山）",
+  "橋（難波橋）",
+  "橋（萬年橋）",
+  "橋（北浜橋）",
+  "橋（水晶橋）",
+  "橋（天神橋）",
+  "橋（天満橋）",
+  "橋（豊後橋）",
+  "橋（玉造橋）",
+  "橋（桜之宮橋）",
+  "橋（毛馬桜之宮橋）",
+  "橋（浜寺公園橋）",
+  "橋（鶴見橋）",
+  "橋（京橋）",
+  "橋（柴島大橋）",
+  "橋（旭橋）",
+  "橋（安治川橋）",
+  "橋（八幡橋）",
+  "橋（豊里大橋）",
+  "橋（淀川大橋）",
+  "橋（十三大橋）",
+  "橋（神津大橋）",
+  "橋（大野橋）",
+  "橋（狭山橋）",
   "森",
   "水辺",
   "レストラン",
@@ -353,8 +435,23 @@ function getGroupName(item) {
   if (item.name.startsWith("神社仏閣（")) {
     return "神社仏閣";
   }
-  if (item.name.startsWith("駅（")) {
+  if (item.name.startsWith("四つ橋線（")) {
     return "駅";
+  }
+  if (item.name.startsWith("御堂筋線（")) {
+    return "駅";
+  }
+  if (item.name.startsWith("北大阪急行（")) {
+    return "駅";
+  }
+  if (item.name.startsWith("中央線（")) {
+    return "駅";
+  }
+  if (item.name.startsWith("JR京都線（")) {
+    return "駅";
+  }
+  if (item.name.startsWith("橋（")) {
+    return "橋";
   }
   return "その他";
 }
@@ -476,7 +573,16 @@ async function initializeAuth() {
     });
 
     if (!response.ok) {
-      throw new Error("invalid session");
+      if (response.status === 401 || response.status === 403) {
+        // トークン無効：ログイン画面に遷移
+        clearAuthSession();
+        checked = {};
+        render();
+        await showAuth();
+        return;
+      }
+      // その他のエラーの場合もトークンをクリア
+      throw new Error("Session validation failed");
     }
 
     currentUser = await response.json();
@@ -484,7 +590,23 @@ async function initializeAuth() {
     await showApp();
     checked = await loadState();
     render();
-  } catch {
+  } catch (err) {
+    // ネットワークエラーなどでサーバーに接続できない場合、
+    // キャッシュされたトークンと認証情報がある場合は一度アプリを表示
+    if (currentToken && currentUser) {
+      try {
+        await showApp();
+        checked = await loadState();
+        render();
+        console.warn("Operating in offline mode with cached session");
+        return;
+      } catch {
+        // キャッシュもない場合はログイン画面
+      }
+    }
+
+    // 最終的にログイン画面に遷移
+    clearAuthSession();
     checked = {};
     render();
     await showAuth();
@@ -543,10 +665,11 @@ function render() {
     "カタカナシール": categories.filter((cat) => cat.group === "カタカナシール"),
     "アルファベットシール大文字": categories.filter((cat) => cat.group === "アルファベットシール大文字"),
     "アルファベットシール小文字": categories.filter((cat) => cat.group === "アルファベットシール小文字"),
-    "駅": categories.filter((cat) => cat.group === "駅")
+    "駅": categories.filter((cat) => cat.group === "駅"),
+    "橋": categories.filter((cat) => cat.group === "橋")
   };
 
-  const groupOrder = ["その他", "神社仏閣", "数字シール", "漢字シール", "ひらがなシール", "カタカナシール", "アルファベットシール大文字", "アルファベットシール小文字", "駅"];
+  const groupOrder = ["その他", "神社仏閣", "数字シール", "漢字シール", "ひらがなシール", "カタカナシール", "アルファベットシール大文字", "アルファベットシール小文字", "駅", "橋"];
 
   for (const groupName of groupOrder) {
     const categoryList = grouped[groupName];
@@ -573,23 +696,87 @@ function render() {
     const content = document.createElement("div");
     content.className = "group-content";
 
-    for (const category of categoryList) {
-      const selected = category.items.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
+    if (groupName === "駅") {
+      const yotsubashiCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("四つ橋線（")));
+      const midosujiCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("御堂筋線（")));
+      const kitaosakakyukoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("北大阪急行（")));
+      const chueoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("中央線（")));
+      const jrkyotoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("JR京都線（")));
 
-      const trigger = document.createElement("button");
-      trigger.type = "button";
-      trigger.className = "category-trigger";
-      trigger.innerHTML = `
-        <span>${category.label}</span>
-        <span class="hint">${selected}/${category.items.length} チェック済み</span>
-      `;
-      trigger.addEventListener("click", () => {
-        activeCategory = category;
-        renderCategoryDialog(category);
-        openItemDialog();
-      });
+      const buildSubGroup = (lineName, cats) => {
+        if (cats.length === 0) return null;
 
-      content.appendChild(trigger);
+        const subDetails = document.createElement("details");
+        subDetails.className = "group sub-group";
+        subDetails.open = query.length > 0;
+
+        const subSummary = document.createElement("summary");
+
+        const subLabel = document.createElement("span");
+        subLabel.className = "group-label";
+        subLabel.textContent = lineName;
+
+        const subCount = document.createElement("span");
+        subCount.className = "group-count";
+        subCount.textContent = `${cats.length}件`;
+
+        subSummary.append(subLabel, subCount);
+
+        const subContent = document.createElement("div");
+        subContent.className = "group-content";
+
+        for (const category of cats) {
+          const selected = category.items.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
+
+          const trigger = document.createElement("button");
+          trigger.type = "button";
+          trigger.className = "category-trigger";
+          trigger.innerHTML = `
+            <span>${category.label}</span>
+            <span class="hint">${selected}/${category.items.length} チェック済み</span>
+          `;
+          trigger.addEventListener("click", () => {
+            activeCategory = category;
+            renderCategoryDialog(category);
+            openItemDialog();
+          });
+
+          subContent.appendChild(trigger);
+        }
+
+        subDetails.append(subSummary, subContent);
+        return subDetails;
+      };
+
+      const yotsubashiEl = buildSubGroup("四つ橋線", yotsubashiCats);
+      const midosujiEl = buildSubGroup("御堂筋線", midosujiCats);
+      const kitaosakakyukoEl = buildSubGroup("北大阪急行", kitaosakakyukoCats);
+      const chueoEl = buildSubGroup("中央線", chueoCats);
+      const jrkyotoEl = buildSubGroup("JR京都線", jrkyotoCats);
+      if (yotsubashiEl) content.appendChild(yotsubashiEl);
+      if (midosujiEl) content.appendChild(midosujiEl);
+      if (kitaosakakyukoEl) content.appendChild(kitaosakakyukoEl);
+      if (chueoEl) content.appendChild(chueoEl);
+      if (jrkyotoEl) content.appendChild(jrkyotoEl);
+    } else {
+      for (const category of categoryList) {
+        const selected = category.items.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
+
+        const trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "category-trigger";
+        trigger.innerHTML = `
+          <span>${category.label}</span>
+          <span class="hint">${selected}/${category.items.length} チェック済み</span>
+        `;
+        trigger.addEventListener("click", () => {
+          activeCategory = category;
+          renderCategoryDialog(category);
+          openItemDialog();
+        });
+
+        content.appendChild(trigger);
+      }
     }
 
     details.append(summary, content);
@@ -617,6 +804,7 @@ colorFilter.addEventListener("change", render);
 logoutBtn?.addEventListener("click", async () => {
   checked = {};
   localStorage.removeItem(STORAGE_KEY);
+  clearAuthSession();
   await showAuth();
 });
 
