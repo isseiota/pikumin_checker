@@ -1,6 +1,8 @@
 const STORAGE_KEY = "pikumin-checker-state-v1";
 const TOKEN_KEY = "pikumin-checker-token";
 const USER_KEY = "pikumin-checker-user";
+const CUSTOM_ITEMS_KEY = "pikumin-custom-items-v1";
+const DELETED_ITEM_IDS_KEY = "pikumin-deleted-item-ids-v1";
 
 // 認証管理
 let currentToken = localStorage.getItem(TOKEN_KEY);
@@ -337,6 +339,64 @@ const PIKMIN_TYPES = BASE_TYPE_NAMES.flatMap((name, nameIndex) =>
   }))
 );
 
+let customItems = [];
+let deletedItemIds = new Set();
+
+function loadCustomItems() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ITEMS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomItems() {
+  localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(customItems));
+}
+
+function loadDeletedItemIds() {
+  try {
+    const raw = localStorage.getItem(DELETED_ITEM_IDS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDeletedItemIds() {
+  localStorage.setItem(DELETED_ITEM_IDS_KEY, JSON.stringify([...deletedItemIds]));
+}
+
+function getAllItems() {
+  return [...PIKMIN_TYPES, ...customItems].filter((item) => !deletedItemIds.has(item.id));
+}
+
+const GROUP_PREFIX_MAP = {
+  "神社仏閣": (name) => `神社仏閣（${name}）`,
+  "橋": (name) => `橋（${name}）`,
+  "その他": (name) => name,
+};
+
+const DEFAULT_GROUP_ORDER = [
+  "その他",
+  "神社仏閣",
+  "数字シール",
+  "漢字シール",
+  "ひらがなシール",
+  "カタカナシール",
+  "アルファベットシール大文字",
+  "アルファベットシール小文字",
+  "駅",
+  "橋"
+];
+
+const DEFAULT_ADDABLE_GROUPS = ["その他", "神社仏閣", "橋", "駅"];
+
 const searchInput = document.getElementById("searchInput");
 const colorFilter = document.getElementById("colorFilter");
 const listEl = document.getElementById("pikminList");
@@ -346,16 +406,27 @@ const completionRateEl = document.getElementById("completionRate");
 const progressBarEl = document.getElementById("progressBar");
 const emptyStateEl = document.getElementById("emptyState");
 const logoutBtn = document.getElementById("logoutBtn");
-const checkAllBtn = document.getElementById("checkAllBtn");
-const resetBtn = document.getElementById("resetBtn");
+const addItemBtn = document.getElementById("addItemBtn");
+const addItemDialog = document.getElementById("addItemDialog");
+const closeAddItemDialogBtn = document.getElementById("closeAddItemDialogBtn");
+const cancelAddItemBtn = document.getElementById("cancelAddItemBtn");
+const confirmAddItemBtn = document.getElementById("confirmAddItemBtn");
+const addItemGroup = document.getElementById("addItemGroup");
+const addItemGroupNewField = document.getElementById("addItemGroupNewField");
+const addItemGroupNew = document.getElementById("addItemGroupNew");
+const addItemLineSelectField = document.getElementById("addItemLineSelectField");
+const addItemLineSelect = document.getElementById("addItemLineSelect");
+const addItemLine = document.getElementById("addItemLine");
+const addItemLineField = document.getElementById("addItemLineField");
+const addItemName = document.getElementById("addItemName");
+const addItemNameLabel = document.getElementById("addItemNameLabel");
+const addItemError = document.getElementById("addItemError");
 const itemDialog = document.getElementById("itemDialog");
 const closeItemDialogBtn = document.getElementById("closeItemDialogBtn");
+const deleteItemBtn = document.getElementById("deleteItemBtn");
 const itemDialogTitle = document.getElementById("itemDialogTitle");
 const itemDialogNote = document.getElementById("itemDialogNote");
 const itemDialogCheckboxes = document.getElementById("itemDialogCheckboxes");
-const resetConfirmDialog = document.getElementById("resetConfirmDialog");
-const cancelResetBtn = document.getElementById("cancelResetBtn");
-const confirmResetBtn = document.getElementById("confirmResetBtn");
 
 let activeCategory = null;
 
@@ -406,7 +477,7 @@ function getFilteredItems() {
   const query = searchInput.value.trim().toLowerCase();
   const color = colorFilter.value;
 
-  return PIKMIN_TYPES.filter((item) => {
+  return getAllItems().filter((item) => {
     const matchesColor = color === "all" || item.color === color;
     const matchesQuery = !query || item.name.toLowerCase().includes(query);
     return matchesColor && matchesQuery;
@@ -434,6 +505,9 @@ function getGroupName(item) {
   }
   if (item.name.startsWith("神社仏閣（")) {
     return "神社仏閣";
+  }
+  if (item.group) {
+    return item.group;
   }
   if (item.name.startsWith("四つ橋線（")) {
     return "駅";
@@ -499,54 +573,44 @@ function closeItemDialog() {
   }
 }
 
-function confirmReset() {
-  if (!resetConfirmDialog) {
-    return Promise.resolve(window.confirm("チェック状態をリセットします。よろしいですか？"));
+function deleteActiveCategory() {
+  if (!activeCategory) {
+    return;
   }
 
-  return new Promise((resolve) => {
-    const finish = (result) => {
-      cancelResetBtn?.removeEventListener("click", onCancel);
-      confirmResetBtn?.removeEventListener("click", onConfirm);
-      resetConfirmDialog.removeEventListener("cancel", onCancelEvent);
-      resetConfirmDialog.removeEventListener("click", onOutsideClick);
-      if (typeof resetConfirmDialog.close === "function") {
-        resetConfirmDialog.close();
-      } else {
-        resetConfirmDialog.removeAttribute("open");
-      }
-      resolve(result);
-    };
+  const targetName = activeCategory.label;
+  const shouldDelete = window.confirm(`「${targetName}」を削除します。よろしいですか？`);
+  if (!shouldDelete) {
+    return;
+  }
 
-    const onCancel = () => finish(false);
-    const onConfirm = () => finish(true);
-    const onCancelEvent = (event) => {
-      event.preventDefault();
-      finish(false);
-    };
-    const onOutsideClick = (event) => {
-      const rect = resetConfirmDialog.getBoundingClientRect();
-      const isOutside =
-        event.clientX < rect.left ||
-        event.clientX > rect.right ||
-        event.clientY < rect.top ||
-        event.clientY > rect.bottom;
-      if (isOutside) {
-        finish(false);
-      }
-    };
+  const targetIds = getAllItems()
+    .filter((item) => item.name === targetName)
+    .map((item) => item.id);
 
-    cancelResetBtn?.addEventListener("click", onCancel);
-    confirmResetBtn?.addEventListener("click", onConfirm);
-    resetConfirmDialog.addEventListener("cancel", onCancelEvent);
-    resetConfirmDialog.addEventListener("click", onOutsideClick);
+  if (targetIds.length === 0) {
+    return;
+  }
 
-    if (typeof resetConfirmDialog.showModal === "function") {
-      resetConfirmDialog.showModal();
-    } else {
-      resetConfirmDialog.setAttribute("open", "");
-    }
-  });
+  const targetIdSet = new Set(targetIds);
+  customItems = customItems.filter((item) => !targetIdSet.has(item.id));
+
+  for (const id of targetIds) {
+    deletedItemIds.add(id);
+    delete checked[id];
+  }
+
+  saveCustomItems();
+  saveDeletedItemIds();
+  saveState();
+
+  activeCategory = null;
+  closeItemDialog();
+  render();
+}
+
+function getPikminColorLabel(color) {
+  return color.endsWith("ピクミン") ? color : `${color}ピクミン`;
 }
 
 function getOptionLabel(item, category) {
@@ -554,7 +618,7 @@ function getOptionLabel(item, category) {
     return item.name;
   }
   if (category.items.length > 1) {
-    return `${item.color} ${item.name}`;
+    return `${getPikminColorLabel(item.color)} ${item.name}`;
   }
   return item.name;
 }
@@ -588,6 +652,8 @@ async function initializeAuth() {
     currentUser = await response.json();
     localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
     await showApp();
+    deletedItemIds = new Set(loadDeletedItemIds());
+    customItems = loadCustomItems();
     checked = await loadState();
     render();
   } catch (err) {
@@ -596,6 +662,8 @@ async function initializeAuth() {
     if (currentToken && currentUser) {
       try {
         await showApp();
+        deletedItemIds = new Set(loadDeletedItemIds());
+        customItems = loadCustomItems();
         checked = await loadState();
         render();
         console.warn("Operating in offline mode with cached session");
@@ -656,23 +724,21 @@ function render() {
 
   listEl.innerHTML = "";
   const categories = buildCategories(filtered);
-  const grouped = {
-    "その他": categories.filter((cat) => cat.group === "その他"),
-    "神社仏閣": categories.filter((cat) => cat.group === "神社仏閣"),
-    "漢字シール": categories.filter((cat) => cat.group === "漢字シール"),
-    "数字シール": categories.filter((cat) => cat.group === "数字シール"),
-    "ひらがなシール": categories.filter((cat) => cat.group === "ひらがなシール"),
-    "カタカナシール": categories.filter((cat) => cat.group === "カタカナシール"),
-    "アルファベットシール大文字": categories.filter((cat) => cat.group === "アルファベットシール大文字"),
-    "アルファベットシール小文字": categories.filter((cat) => cat.group === "アルファベットシール小文字"),
-    "駅": categories.filter((cat) => cat.group === "駅"),
-    "橋": categories.filter((cat) => cat.group === "橋")
-  };
+  const grouped = new Map();
+  for (const category of categories) {
+    if (!grouped.has(category.group)) {
+      grouped.set(category.group, []);
+    }
+    grouped.get(category.group).push(category);
+  }
 
-  const groupOrder = ["その他", "神社仏閣", "数字シール", "漢字シール", "ひらがなシール", "カタカナシール", "アルファベットシール大文字", "アルファベットシール小文字", "駅", "橋"];
+  const extraGroups = [...grouped.keys()]
+    .filter((group) => !DEFAULT_GROUP_ORDER.includes(group))
+    .sort((a, b) => a.localeCompare(b, "ja"));
+  const groupOrder = [...DEFAULT_GROUP_ORDER, ...extraGroups];
 
   for (const groupName of groupOrder) {
-    const categoryList = grouped[groupName];
+    const categoryList = grouped.get(groupName) || [];
     if (categoryList.length === 0) {
       continue;
     }
@@ -697,11 +763,13 @@ function render() {
     content.className = "group-content";
 
     if (groupName === "駅") {
-      const yotsubashiCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("四つ橋線（")));
-      const midosujiCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("御堂筋線（")));
-      const kitaosakakyukoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("北大阪急行（")));
-      const chueoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("中央線（")));
-      const jrkyotoCats = categoryList.filter((cat) => cat.items.some((item) => item.name.startsWith("JR京都線（")));
+      const lineMap = new Map();
+      for (const cat of categoryList) {
+        const match = cat.label.match(/^(.+?)（/);
+        const lineName = match ? match[1] : cat.label;
+        if (!lineMap.has(lineName)) lineMap.set(lineName, []);
+        lineMap.get(lineName).push(cat);
+      }
 
       const buildSubGroup = (lineName, cats) => {
         if (cats.length === 0) return null;
@@ -748,16 +816,10 @@ function render() {
         return subDetails;
       };
 
-      const yotsubashiEl = buildSubGroup("四つ橋線", yotsubashiCats);
-      const midosujiEl = buildSubGroup("御堂筋線", midosujiCats);
-      const kitaosakakyukoEl = buildSubGroup("北大阪急行", kitaosakakyukoCats);
-      const chueoEl = buildSubGroup("中央線", chueoCats);
-      const jrkyotoEl = buildSubGroup("JR京都線", jrkyotoCats);
-      if (yotsubashiEl) content.appendChild(yotsubashiEl);
-      if (midosujiEl) content.appendChild(midosujiEl);
-      if (kitaosakakyukoEl) content.appendChild(kitaosakakyukoEl);
-      if (chueoEl) content.appendChild(chueoEl);
-      if (jrkyotoEl) content.appendChild(jrkyotoEl);
+      for (const [lineName, cats] of lineMap) {
+        const el = buildSubGroup(lineName, cats);
+        if (el) content.appendChild(el);
+      }
     } else {
       for (const category of categoryList) {
         const selected = category.items.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
@@ -784,13 +846,14 @@ function render() {
   }
 
   emptyStateEl.hidden = filtered.length > 0;
-  totalCountEl.textContent = String(PIKMIN_TYPES.length);
+  totalCountEl.textContent = String(getAllItems().length);
   updateStats();
 }
 
 function updateStats() {
-  const collected = PIKMIN_TYPES.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
-  const total = PIKMIN_TYPES.length;
+  const allItems = getAllItems();
+  const collected = allItems.reduce((sum, item) => sum + (checked[item.id] ? 1 : 0), 0);
+  const total = allItems.length;
   const rate = total === 0 ? 0 : Math.round((collected / total) * 100);
 
   collectedCountEl.textContent = String(collected);
@@ -808,28 +871,8 @@ logoutBtn?.addEventListener("click", async () => {
   await showAuth();
 });
 
-checkAllBtn.addEventListener("click", () => {
-  for (const item of getFilteredItems()) {
-    checked[item.id] = true;
-  }
-
-  saveState();
-  render();
-});
-
-resetBtn.addEventListener("click", async () => {
-  const shouldReset = await confirmReset();
-  if (!shouldReset) {
-    return;
-  }
-
-  checked = {};
-  localStorage.removeItem(STORAGE_KEY);
-  await saveState();
-  render();
-});
-
 closeItemDialogBtn.addEventListener("click", closeItemDialog);
+deleteItemBtn?.addEventListener("click", deleteActiveCategory);
 
 itemDialog.addEventListener("click", (event) => {
   const rect = itemDialog.getBoundingClientRect();
@@ -846,6 +889,224 @@ itemDialog.addEventListener("click", (event) => {
 itemDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
   closeItemDialog();
+});
+
+// --- カスタム項目追加 ---
+
+function getStationLineName(name) {
+  const match = typeof name === "string" ? name.match(/^(.+?)（.+）$/) : null;
+  return match ? match[1] : "";
+}
+
+function getGroupOptions() {
+  const groupSet = new Set(DEFAULT_ADDABLE_GROUPS);
+
+  for (const item of getAllItems()) {
+    groupSet.add(getGroupName(item));
+  }
+
+  const extras = [...groupSet]
+    .filter((group) => !DEFAULT_ADDABLE_GROUPS.includes(group))
+    .sort((a, b) => a.localeCompare(b, "ja"));
+
+  return [...DEFAULT_ADDABLE_GROUPS, ...extras];
+}
+
+function buildGroupSelect() {
+  if (!addItemGroup) {
+    return;
+  }
+
+  const groups = getGroupOptions();
+  addItemGroup.innerHTML = "";
+
+  for (const groupName of groups) {
+    const option = document.createElement("option");
+    option.value = groupName;
+    option.textContent = groupName;
+    addItemGroup.appendChild(option);
+  }
+
+  const createOption = document.createElement("option");
+  createOption.value = "__new__";
+  createOption.textContent = "＋ 新規作成";
+  addItemGroup.appendChild(createOption);
+
+  addItemGroup.value = groups.includes("その他") ? "その他" : "__new__";
+}
+
+function getStationLineOptions() {
+  const lineSet = new Set();
+
+  for (const item of getAllItems()) {
+    if (getGroupName(item) !== "駅") {
+      continue;
+    }
+    const lineName = getStationLineName(item.name);
+    if (lineName) {
+      lineSet.add(lineName);
+    }
+  }
+
+  return [...lineSet].sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function buildStationLineSelect() {
+  if (!addItemLineSelect) {
+    return;
+  }
+
+  const lines = getStationLineOptions();
+  addItemLineSelect.innerHTML = "";
+
+  for (const lineName of lines) {
+    const option = document.createElement("option");
+    option.value = lineName;
+    option.textContent = lineName;
+    addItemLineSelect.appendChild(option);
+  }
+
+  const createOption = document.createElement("option");
+  createOption.value = "__new__";
+  createOption.textContent = "＋ 新規作成";
+  addItemLineSelect.appendChild(createOption);
+
+  addItemLineSelect.value = lines.length > 0 ? lines[0] : "__new__";
+}
+
+function updateAddItemGroupUI() {
+  const isNewGroup = addItemGroup.value === "__new__";
+  const resolvedGroup = isNewGroup ? addItemGroupNew.value.trim() : addItemGroup.value;
+  const isStation = resolvedGroup === "駅";
+
+  addItemGroupNewField.style.display = isNewGroup ? "" : "none";
+  addItemLineSelectField.style.display = isStation ? "" : "none";
+  addItemLineField.style.display = isStation && addItemLineSelect?.value === "__new__" ? "" : "none";
+  addItemNameLabel.textContent = isStation ? "駅名" : "項目名";
+  addItemName.placeholder = isStation ? "例: テスト駅" : resolvedGroup === "橋" ? "例: テスト橋" : "例: テスト項目";
+}
+
+function openAddItemDialog() {
+  buildGroupSelect();
+  buildStationLineSelect();
+  addItemName.value = "";
+  if (addItemGroupNew) addItemGroupNew.value = "";
+  if (addItemLine) addItemLine.value = "";
+  addItemError.style.display = "none";
+  updateAddItemGroupUI();
+  if (typeof addItemDialog.showModal === "function") {
+    addItemDialog.showModal();
+  } else {
+    addItemDialog.setAttribute("open", "");
+  }
+}
+
+function closeAddItemDialog() {
+  if (typeof addItemDialog.close === "function") {
+    addItemDialog.close();
+  } else {
+    addItemDialog.removeAttribute("open");
+  }
+}
+
+addItemBtn?.addEventListener("click", openAddItemDialog);
+addItemGroup?.addEventListener("change", updateAddItemGroupUI);
+addItemGroupNew?.addEventListener("input", updateAddItemGroupUI);
+addItemLineSelect?.addEventListener("change", updateAddItemGroupUI);
+
+closeAddItemDialogBtn?.addEventListener("click", closeAddItemDialog);
+cancelAddItemBtn?.addEventListener("click", closeAddItemDialog);
+
+addItemDialog?.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeAddItemDialog();
+});
+
+addItemDialog?.addEventListener("click", (event) => {
+  const rect = addItemDialog.getBoundingClientRect();
+  const isOutside =
+    event.clientX < rect.left ||
+    event.clientX > rect.right ||
+    event.clientY < rect.top ||
+    event.clientY > rect.bottom;
+  if (isOutside) closeAddItemDialog();
+});
+
+confirmAddItemBtn?.addEventListener("click", () => {
+  const selectedGroup = addItemGroup.value;
+  const group = selectedGroup === "__new__" ? addItemGroupNew.value.trim() : selectedGroup;
+  const rawName = addItemName.value.trim();
+
+  if (!group) {
+    addItemError.textContent = "カテゴリ名を入力してください。";
+    addItemError.style.display = "block";
+    return;
+  }
+
+  if (group === "駅") {
+    const selectedLine = addItemLineSelect ? addItemLineSelect.value : "__new__";
+    const rawLine = selectedLine === "__new__"
+      ? (addItemLine ? addItemLine.value.trim() : "")
+      : selectedLine;
+    if (!rawLine) {
+      addItemError.textContent = selectedLine === "__new__" ? "新規路線名を入力してください。" : "路線を選択してください。";
+      addItemError.style.display = "block";
+      return;
+    }
+    if (!rawName) {
+      addItemError.textContent = "駅名を入力してください。";
+      addItemError.style.display = "block";
+      return;
+    }
+    const name = `${rawLine}（${rawName}）`;
+    const duplicate = getAllItems().some((item) => item.name === name);
+    if (duplicate) {
+      addItemError.textContent = "同じ路線・駅名はすでに存在します。";
+      addItemError.style.display = "block";
+      return;
+    }
+    const timestamp = Date.now();
+    const newItems = COLOR_OPTIONS.map((color, i) => ({
+      id: `custom-${timestamp}-${i}`,
+      name,
+      color: color.label,
+      group: "駅",
+    }));
+    customItems.push(...newItems);
+    saveCustomItems();
+    closeAddItemDialog();
+    render();
+    return;
+  }
+
+  if (!rawName) {
+    addItemError.textContent = "項目名を入力してください。";
+    addItemError.style.display = "block";
+    return;
+  }
+
+  const formatName = GROUP_PREFIX_MAP[group];
+  const name = formatName ? formatName(rawName) : rawName;
+
+  const duplicate = getAllItems().some((item) => item.name === name);
+  if (duplicate) {
+    addItemError.textContent = "同じ項目名はすでに存在します。";
+    addItemError.style.display = "block";
+    return;
+  }
+
+  const timestamp = Date.now();
+  const newItems = COLOR_OPTIONS.map((color, i) => ({
+    id: `custom-${timestamp}-${i}`,
+    name,
+    color: color.label,
+    ...(group !== "その他" ? { group } : {}),
+  }));
+
+  customItems.push(...newItems);
+  saveCustomItems();
+  closeAddItemDialog();
+  render();
 });
 
 initializeAuth();

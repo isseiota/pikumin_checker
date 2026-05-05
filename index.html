@@ -34,7 +34,7 @@
         </div>
 
         <!-- 登録フォーム -->
-        <div id="registerSection" class="auth-section" style="display: none;">
+        <div id="registerSection" class="auth-section is-hidden">
           <h2>新規登録</h2>
           <form id="registerForm">
             <div class="form-group">
@@ -53,12 +53,12 @@
           </p>
         </div>
 
-        <div id="authError" class="error-message" style="display: none;"></div>
+        <div id="authError" class="error-message is-hidden"></div>
       </div>
     </div>
 
     <!-- アプリメイン画面 -->
-    <div id="appContainer" style="display: none;">
+    <div id="appContainer" class="is-hidden">
       <div class="bg-shape bg-shape-a"></div>
       <div class="bg-shape bg-shape-b"></div>
 
@@ -82,19 +82,19 @@
           <span>色フィルタ</span>
           <select id="colorFilter">
             <option value="all">すべて</option>
-            <option value="赤">赤</option>
-            <option value="黄">黄</option>
-            <option value="青">青</option>
-            <option value="紫">紫</option>
-            <option value="白">白</option>
-            <option value="羽">羽</option>
-            <option value="岩">岩</option>
+            <option value="赤">赤ピクミン</option>
+            <option value="黄">黄ピクミン</option>
+            <option value="青">青ピクミン</option>
+            <option value="紫">紫ピクミン</option>
+            <option value="白">白ピクミン</option>
+            <option value="羽">羽ピクミン</option>
+            <option value="岩">岩ピクミン</option>
           </select>
         </label>
 
+
         <div class="actions">
-          <button id="checkAllBtn" type="button">表示中をすべてチェック</button>
-          <button id="resetBtn" type="button" class="danger">リセット</button>
+          <button id="addItemBtn" type="button">＋ 項目を追加</button>
         </div>
       </section>
 
@@ -131,18 +131,45 @@
       </div>
       <p id="itemDialogNote" class="dialog-note">この項目のチェックを変更できます。</p>
       <div id="itemDialogCheckboxes" class="seedling-checkboxes"></div>
+      <div class="confirm-actions">
+        <button id="deleteItemBtn" type="button" class="danger">項目削除</button>
+      </div>
     </dialog>
 
-    <dialog id="resetConfirmDialog" class="seedling-dialog reset-confirm-dialog">
+    <dialog id="addItemDialog" class="seedling-dialog">
       <div class="dialog-header">
-        <h3>リセット確認</h3>
+        <h3>項目を追加</h3>
+        <button id="closeAddItemDialogBtn" type="button" class="dialog-close">閉じる</button>
       </div>
-      <p class="dialog-note">チェック状態をリセットします。よろしいですか？</p>
+      <div class="add-item-form">
+        <label class="field">
+          <span>カテゴリ</span>
+          <select id="addItemGroup"></select>
+        </label>
+        <label class="field is-hidden" id="addItemGroupNewField">
+          <span>新規カテゴリ名</span>
+          <input id="addItemGroupNew" type="text" placeholder="例: 名所" maxlength="50" />
+        </label>
+        <label class="field is-hidden" id="addItemLineSelectField">
+          <span>路線</span>
+          <select id="addItemLineSelect"></select>
+        </label>
+        <label class="field is-hidden" id="addItemLineField">
+          <span>新規路線名</span>
+          <input id="addItemLine" type="text" placeholder="例: テスト線" maxlength="50" />
+        </label>
+        <label class="field">
+          <span id="addItemNameLabel">項目名</span>
+          <input id="addItemName" type="text" placeholder="例: テスト橋" maxlength="50" />
+        </label>
+        <p id="addItemError" class="error-message is-hidden"></p>
+      </div>
       <div class="confirm-actions">
-        <button id="cancelResetBtn" type="button" class="secondary">キャンセル</button>
-        <button id="confirmResetBtn" type="button" class="danger">リセットする</button>
+        <button id="cancelAddItemBtn" type="button" class="secondary">キャンセル</button>
+        <button id="confirmAddItemBtn" type="button">追加する</button>
       </div>
     </dialog>
+
     </div><!-- appContainer end -->
 
     <script src="joyo-kanji.js"></script>

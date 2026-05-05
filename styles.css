@@ -9,6 +9,9 @@
   --line: #e7dfd2;
   --shadow: 0 12px 30px rgba(80, 55, 30, 0.14);
 }
+.is-hidden {
+  display: none;
+}
 
 * {
   box-sizing: border-box;
@@ -366,6 +369,30 @@ h2 {
 
 .confirm-actions button {
   min-width: 120px;
+}
+
+.add-item-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.add-item-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.add-item-form select,
+.add-item-form input[type="text"] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 1rem;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .seedling-checkboxes {
