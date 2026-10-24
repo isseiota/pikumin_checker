@@ -185,9 +185,9 @@ const COLOR_OPTIONS = [
   { code: "blue", label: "青" },
   { code: "purple", label: "紫" },
   { code: "white", label: "白" },
-  { code: "ice", label: "氷" },
   { code: "wing", label: "羽" },
   { code: "rock", label: "岩" }
+  { code: "ice", label: "氷" },
 ];
 
 const JOYO_KANJI_CHARS = Array.isArray(window.JOYO_KANJI_CHARS)
